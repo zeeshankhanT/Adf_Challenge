@@ -1,0 +1,761 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "ledoadf"
+		},
+		"RestService1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "@{linkedService().baseurl}"
+		},
+		"ls_adls_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://legoadls.dfs.core.windows.net/"
+		},
+		"ls_http_csv_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "@{linkedService().baseurl}"
+		},
+		"ls_kv_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://legokvz.vault.azure.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_Ingest')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_Config",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "DsConfigJson",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Filter_DownloadsConfig",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Config",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_Config').output.value[0].lego.datasets\n\n\n",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@not(empty(item()))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachDownloads",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Filter_DownloadsConfig",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Filter_DownloadsConfig').output.Value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CopyDataLego",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "HttpReadSettings",
+												"requestMethod": "GET"
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "DsBinaryWeb",
+											"type": "DatasetReference",
+											"parameters": {
+												"baseurl": {
+													"value": "@item().fileUrl",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DSBinarySink",
+											"type": "DatasetReference",
+											"parameters": {
+												"name": {
+													"value": "@{item().name}/@{formatDateTime(utcNow(),'yyyy')}/@{formatDateTime(utcNow(),'MM')}/@{formatDateTime(utcNow(),'dd')}/part-*.csv",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "ForEachDownloads_copy1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Filter_ApiConfig",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Filter_ApiConfig').output.Value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CopyDataUsers",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "GetRebrickableApiKey",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										},
+										{
+											"activity": "GetUserToken",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": true,
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:00.010",
+											"requestMethod": "GET",
+											"additionalHeaders": {
+												"Authorization": {
+													"value": "key @{activity('GetRebrickableApiKey').output.value}",
+													"type": "Expression"
+												}
+											},
+											"paginationRules": {
+												"supportRFC5988": "true"
+											}
+										},
+										"sink": {
+											"type": "JsonSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "JsonWriteSettings"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "DsApiSource",
+											"type": "DatasetReference",
+											"parameters": {
+												"baseurl": "https://rebrickable.com/api/v3/",
+												"relativeurl": {
+													"value": "users/@{activity('GetUserToken').output.value}/sets/",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DSAdlsJsonUser",
+											"type": "DatasetReference",
+											"parameters": {
+												"name": {
+													"value": "@{item().name}/@{formatDateTime(utcNow(),'yyyy')}/@{formatDateTime(utcNow(),'MM')}/@{formatDateTime(utcNow(),'dd')}/part-*.json",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "GetRebrickableApiKey",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": true,
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "GET",
+										"headers": {},
+										"url": {
+											"value": "https://legokvz.vault.azure.net/secrets/rebrickable-api-key?api-version=7.5",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://vault.azure.net"
+										}
+									}
+								},
+								{
+									"name": "GetUserToken",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": true,
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "GET",
+										"headers": {},
+										"url": {
+											"value": "https://legokvz.vault.azure.net/secrets/rebrickable-user-token?api-version=7.5",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://vault.azure.net"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Filter_ApiConfig",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Config",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_Config').output.value[0].users.datasets\n\n\n\n\n",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@not(empty(item()))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "NotifyFailure",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "ForEachDownloads",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "ForEachDownloads_copy1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-31.centralindia.logic.azure.com:443/workflows/b7940b83fc474c4089d8054355e86711/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=rYEini4yetw-ACdyHExRRYLslhUmfh6Nz4nwUrLwU7M",
+							"body": {
+								"value": "{\n  \"pipelineName\": \"@{pipeline().Pipeline}\",\n  \"runId\": \"@{pipeline().RunId}\",\n  \"timestamp\": \"@{utcNow()}\"\n}\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"values": {
+						"type": "Array"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-08-17T10:59:55Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DsConfigJson')]",
+				"[concat(variables('factoryId'), '/datasets/DsBinaryWeb')]",
+				"[concat(variables('factoryId'), '/datasets/DSBinarySink')]",
+				"[concat(variables('factoryId'), '/datasets/DsApiSource')]",
+				"[concat(variables('factoryId'), '/datasets/DSAdlsJsonUser')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DSAdlsJsonUser')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"name": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Api"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().name",
+							"type": "Expression"
+						},
+						"folderPath": "rebrickable/users",
+						"fileSystem": "raw"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DSBinarySink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"name": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Downloads"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().name",
+							"type": "Expression"
+						},
+						"folderPath": "rebrickable/lego",
+						"fileSystem": "raw"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DsApiSource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RestService1",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"baseurl": {
+							"value": "@dataset().baseurl",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"baseurl": {
+						"type": "String"
+					},
+					"relativeurl": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Api"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().relativeurl",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RestService1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DsBinaryWeb')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_http_csv",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"baseurl": {
+							"value": "@dataset().baseurl",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"baseurl": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Downloads"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "HttpServerLocation"
+					},
+					"compression": {
+						"type": "gzip"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_http_csv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DsConfigJson')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Downloads"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "ingestion_config.json",
+						"folderPath": "rebrickable/config",
+						"fileSystem": "raw"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						"lego": {
+							"type": "object",
+							"properties": {
+								"baseUrl": {
+									"type": "string"
+								},
+								"datasets": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"fileUrl": {
+												"type": "string"
+											},
+											"compression": {
+												"type": "string"
+											},
+											"fileType": {
+												"type": "string"
+											}
+										}
+									}
+								}
+							}
+						},
+						"users": {
+							"type": "object",
+							"properties": {
+								"baseUrl": {
+									"type": "string"
+								},
+								"datasets": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"relativePath": {
+												"type": "string"
+											},
+											"pagination": {
+												"type": "object",
+												"properties": {
+													"type": {
+														"type": "string"
+													},
+													"nextProperty": {
+														"type": "string"
+													}
+												}
+											},
+											"rateLimits": {
+												"type": "object",
+												"properties": {
+													"maxRequestsPerMinute": {
+														"type": "integer"
+													},
+													"requestIntervalMs": {
+														"type": "integer"
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestService1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"baseurl": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('RestService1_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_kv",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "adlslego"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_kv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_http_csv')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"baseurl": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "HttpServer",
+				"typeProperties": {
+					"url": "[parameters('ls_http_csv_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_kv')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_kv_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ScheduleTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "PL_Ingest",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2025-08-17T09:43:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"hours": [
+								9
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_Ingest')]"
+			]
+		}
+	]
+}
