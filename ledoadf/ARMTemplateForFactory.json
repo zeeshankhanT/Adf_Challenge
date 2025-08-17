@@ -673,9 +673,6 @@
 					"referenceName": "ls_adls",
 					"type": "LinkedServiceReference"
 				},
-				"folder": {
-					"name": "Downloads"
-				},
 				"annotations": [],
 				"type": "Json",
 				"typeProperties": {
@@ -854,7 +851,7 @@
 				"pipelines": [
 					{
 						"pipelineReference": {
-							"referenceName": "PL_Ingest_Downloads",
+							"referenceName": "PL_Ingest_Rebrickable",
 							"type": "PipelineReference"
 						},
 						"parameters": {}
@@ -876,7 +873,7 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/PL_Ingest_Downloads')]"
+				"[concat(variables('factoryId'), '/pipelines/PL_Ingest_Rebrickable')]"
 			]
 		}
 	]
