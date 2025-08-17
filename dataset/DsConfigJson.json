@@ -5,9 +5,6 @@
 			"referenceName": "ls_adls",
 			"type": "LinkedServiceReference"
 		},
-		"folder": {
-			"name": "Downloads"
-		},
 		"annotations": [],
 		"type": "Json",
 		"typeProperties": {
