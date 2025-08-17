@@ -19,6 +19,9 @@
 				"type": "String"
 			}
 		},
+		"folder": {
+			"name": "Api"
+		},
 		"annotations": [],
 		"type": "RestResource",
 		"typeProperties": {
