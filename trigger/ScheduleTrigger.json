@@ -6,7 +6,7 @@
 		"pipelines": [
 			{
 				"pipelineReference": {
-					"referenceName": "PL_Ingest_Downloads",
+					"referenceName": "PL_Ingest",
 					"type": "PipelineReference"
 				}
 			}

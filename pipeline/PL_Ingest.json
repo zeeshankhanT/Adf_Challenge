@@ -1,5 +1,5 @@
 {
-	"name": "PL_Ingest_Downloads",
+	"name": "PL_Ingest",
 	"properties": {
 		"activities": [
 			{
