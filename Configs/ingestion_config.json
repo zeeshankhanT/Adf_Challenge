@@ -1,0 +1,74 @@
+{
+  "lego": {
+    "baseUrl": "https://rebrickable.com/downloads/",
+    "datasets": [
+      {
+        "name": "themes",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/themes.csv.gz"
+       
+      },
+      {
+        "name": "colors",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/colors.csv.gz"
+       
+      },
+      {
+        "name": "part_categories",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/part_categories.csv.gz"
+      
+      },
+      {
+        "name": "parts",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/parts.csv.gz"
+        
+      },
+      {
+        "name": "part_relationships",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/part_relationships.csv.gz"
+      
+      },
+      {
+        "name": "elements",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/elements.csv.gz"
+        
+      },
+      {
+        "name": "sets",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/sets.csv.gz"
+        
+      },
+      {
+        "name": "minifigs",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/minifigs.csv.gz"
+      
+      },
+      {
+        "name": "inventories",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/inventories.csv.gz"
+      
+      },
+      {
+        "name": "inventory_parts",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/inventory_parts.csv.gz"
+       
+      },
+      {
+        "name": "inventory_sets",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/inventory_sets.csv.gz"
+      },
+			{
+        "name": "inventory_minifigs",
+        "fileUrl": "https://cdn.rebrickable.com/media/downloads/inventory_minifigs.csv.gz"
+      }
+    ]
+  },
+  "users": {
+    "baseUrl": "https://rebrickable.com/api/v3/",
+    "datasets": [
+      {
+        "name": "user_minifigs"
+        
+      }
+    ]
+  }
+}
