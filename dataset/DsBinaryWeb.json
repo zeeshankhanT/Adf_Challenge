@@ -1,0 +1,34 @@
+{
+	"name": "DsBinaryWeb",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_http_csv",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"baseurl": {
+					"value": "@dataset().baseurl",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"baseurl": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Downloads"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "HttpServerLocation"
+			},
+			"compression": {
+				"type": "gzip"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

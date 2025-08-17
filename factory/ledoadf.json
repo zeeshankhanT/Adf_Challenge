@@ -1,0 +1,9 @@
+{
+	"name": "ledoadf",
+	"location": "centralindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "efd2d332-ef06-4c13-8fde-6612ab7c8c1b",
+		"tenantId": "26b7c784-c79a-4a52-9bc3-540b0cdb4c0b"
+	}
+}

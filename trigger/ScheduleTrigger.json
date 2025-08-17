@@ -1,0 +1,29 @@
+{
+	"name": "ScheduleTrigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_Ingest_Downloads",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2025-08-17T09:43:00",
+				"timeZone": "India Standard Time",
+				"schedule": {
+					"hours": [
+						9
+					]
+				}
+			}
+		}
+	}
+}
